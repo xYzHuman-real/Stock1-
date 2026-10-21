@@ -241,9 +241,11 @@ class Stock1ViewModel(application: Application) : AndroidViewModel(application) 
         val history = instrument.historicalData[selectedRange.label].orEmpty()
         val currentNews = (newsState.value as? NewsUiState.Success)?.items ?: emptyList()
         val relevant = currentNews.filter { item ->
-            item.category == instrument.category.displayName ||
-            item.title.contains(instrument.symbol, ignoreCase = true) ||
-            item.summary.contains(instrument.symbol, ignoreCase = true)
+            !item.isSampleFeed && (
+                item.category == instrument.category.displayName ||
+                item.title.contains(instrument.symbol, ignoreCase = true) ||
+                item.summary.contains(instrument.symbol, ignoreCase = true)
+            )
         }.take(3)
         val ctx = InstrumentTutorContext(
             instrument = instrument,
