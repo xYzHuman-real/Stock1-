@@ -2,6 +2,7 @@ package com.example
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
@@ -18,6 +19,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -46,6 +50,8 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.appcheck.FirebaseAppCheck
 import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
 import kotlinx.coroutines.flow.collectLatest
+import android.os.SystemClock
+import android.widget.Toast
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -94,6 +100,33 @@ fun Stock1App(viewModel: Stock1ViewModel = viewModel()) {
     val selectedSortOption by viewModel.selectedSortOption.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
+    var lastHomeBackPress by remember { mutableLongStateOf(0L) }
+
+    BackHandler(enabled = true) {
+        when {
+            tradeDialogState.isOpen -> viewModel.closeTradeSheet()
+            createAlertDialogState.isOpen -> viewModel.closeCreateAlertDialog()
+            isAlertsSheetOpen -> viewModel.closeAlertsSheet()
+            isOnboardingVisible -> { /* onboarding owns its completion flow */ }
+            isAiTutorOpen -> viewModel.closeAiTutor()
+            selectedInstrumentId != null -> viewModel.closeInstrumentDetail()
+            selectedLessonId != null -> viewModel.closeLesson()
+            currentDestination != AppDestination.HOME -> viewModel.navigateTo(AppDestination.HOME)
+            else -> {
+                val now = SystemClock.elapsedRealtime()
+                if (now - lastHomeBackPress < 2000L) {
+                    (androidx.compose.ui.platform.LocalContext.current as? android.app.Activity)?.finish()
+                } else {
+                    lastHomeBackPress = now
+                    Toast.makeText(
+                        androidx.compose.ui.platform.LocalContext.current,
+                        "Press Back again to exit Stock1",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.snackbarEvent.collectLatest { message ->
@@ -195,7 +228,11 @@ fun Stock1App(viewModel: Stock1ViewModel = viewModel()) {
                                     viewModel.selectedCategoryFilter.value = cat
                                 },
                                 onAiTutorClick = { viewModel.openAiTutor() },
-                                onOpenLesson = { lessonId -> viewModel.openLesson(lessonId) },
+                                onOpenLesson = { lessonId ->
+                                    val validId = viewModel.repository.lessons.firstOrNull { it.id == lessonId }?.id
+                                        ?: viewModel.repository.lessons.firstOrNull()?.id
+                                    if (validId != null) viewModel.openLesson(validId)
+                                },
                                 watchlistIds = watchlistIds,
                                 onToggleWatchlist = { id -> viewModel.toggleWatchlist(id) }
                             )
