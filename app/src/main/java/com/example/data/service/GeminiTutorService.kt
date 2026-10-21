@@ -106,10 +106,11 @@ class GeminiTutorService {
             "No verified, instrument-specific news headlines are attached. Do not infer or invent news."
         }
 
+        fun price(value: Double): String = "${inst.currency}%,.2f".format(Locale.US, value)
         val chartStats = if (context.historicalPoints.isNotEmpty()) {
             val min = context.historicalPoints.minOrNull() ?: inst.currentPrice
             val max = context.historicalPoints.maxOrNull() ?: inst.currentPrice
-            "Recorded ${context.historicalPoints.size} historical points for range ${context.selectedTimeRange.label}. Range Low: ${inst.currency}%,.2f, Range High: ${inst.currency}%,.2f.".format(min, max)
+            "Recorded ${context.historicalPoints.size} historical points for range ${context.selectedTimeRange.label}. Range Low: ${price(min)}, Range High: ${price(max)}."
         } else {
             "No recorded historical points are available for this selected range."
         }
@@ -120,10 +121,10 @@ class GeminiTutorService {
             ACTIVE INSTRUMENT CONTEXT (CURRENTLY VIEWED BY USER IN STOCK1):
             - Instrument: ${inst.name} (${inst.symbol}) on ${inst.exchange}
             - Category: ${inst.category.displayName} (${inst.category.shortLabel})
-            - Simulated Current Price: ${inst.currency}%,.2f (DEMO DATA - NOT REAL EXCHANGE PRICE)
-            - Daily Movement: ${inst.currency}%,.2f (${inst.changePercent}%)
-            - Day Range: ${inst.currency}%,.2f to ${inst.currency}%,.2f
-            - 52-Week Range: ${inst.currency}%,.2f to ${inst.currency}%,.2f
+            - Simulated Current Price: ${price(inst.currentPrice)} (DEMO DATA - NOT REAL EXCHANGE PRICE)
+            - Daily Movement: ${price(inst.change)} (${inst.changePercent}%)
+            - Day Range: ${price(inst.dayLow)} to ${price(inst.dayHigh)}
+            - 52-Week Range: ${price(inst.fiftyTwoWeekLow)} to ${price(inst.fiftyTwoWeekHigh)}
             - App-provided sample metrics (not independently verified): P/E ${inst.peRatio ?: "N/A"}, Dividend Yield ${inst.dividendYield?.let { "$it%" } ?: "N/A"}, Beta ${inst.beta}
             - Risk Profile: ${inst.riskProfile}
             - App-provided educational description (not independently verified): ${inst.description}
