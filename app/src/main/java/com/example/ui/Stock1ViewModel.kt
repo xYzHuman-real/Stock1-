@@ -238,12 +238,14 @@ class Stock1ViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun openAiTutorForInstrument(instrument: Instrument, selectedRange: TimeRange = TimeRange.ONE_DAY) {
-        val history = instrument.historicalData[selectedRange.label] ?: instrument.sparkline
+        val history = instrument.historicalData[selectedRange.label].orEmpty()
         val currentNews = (newsState.value as? NewsUiState.Success)?.items ?: emptyList()
         val relevant = currentNews.filter { item ->
-            item.category == instrument.category.displayName ||
-            item.title.contains(instrument.symbol, ignoreCase = true) ||
-            item.summary.contains(instrument.symbol, ignoreCase = true)
+            !item.isSampleFeed && (
+                item.category == instrument.category.displayName ||
+                item.title.contains(instrument.symbol, ignoreCase = true) ||
+                item.summary.contains(instrument.symbol, ignoreCase = true)
+            )
         }.take(3)
         val ctx = InstrumentTutorContext(
             instrument = instrument,
@@ -327,6 +329,7 @@ class Stock1ViewModel(application: Application) : AndroidViewModel(application) 
         val clean = questionText.trim()
         if (clean.isBlank()) return
         _lastTutorQuestion = clean
+        val previousMessages = _chatMessages.value.takeLast(10)
 
         val userMsg = ChatMessage(
             id = UUID.randomUUID().toString(),
@@ -339,7 +342,7 @@ class Stock1ViewModel(application: Application) : AndroidViewModel(application) 
         _isTutorThinking.value = true
 
         viewModelScope.launch {
-            val tutorReply = repository.askTutor(clean, _tutorContext.value)
+            val tutorReply = repository.askTutor(clean, _tutorContext.value, previousMessages)
             _chatMessages.value = _chatMessages.value + tutorReply
             _isTutorThinking.value = false
         }

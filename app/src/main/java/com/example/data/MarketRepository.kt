@@ -435,8 +435,12 @@ class MarketRepository(private val localStore: LocalStore) {
     private val geminiTutorService = GeminiTutorService()
 
     // AI Financial Tutor Logic powered by Gemini & contextual guardrails
-    suspend fun askTutor(query: String, context: InstrumentTutorContext? = null): ChatMessage {
-        return geminiTutorService.generateTutorResponse(query, context)
+    suspend fun askTutor(
+        query: String,
+        context: InstrumentTutorContext? = null,
+        conversationHistory: List<ChatMessage> = emptyList()
+    ): ChatMessage {
+        return geminiTutorService.generateTutorResponse(query, context, conversationHistory)
     }
 
     fun isGeminiConfigured(): Boolean = geminiTutorService.isGeminiConfigured()

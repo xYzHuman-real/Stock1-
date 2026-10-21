@@ -71,19 +71,10 @@ import com.example.ui.theme.PurpleSoftLavender
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import com.example.ui.theme.TextTertiary
-import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
-import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottomAxis
-import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStartAxis
-import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
-import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
-import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
-import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
-import com.patrykandpatrick.vico.core.cartesian.layer.LineCartesianLayer
-import com.patrykandpatrick.vico.core.common.Fill
 
 enum class ChartDisplayMode(val label: String) {
-    VICO_LINE("Vico Line"),
-    CANDLESTICK("Candles"),
+    VICO_LINE("Smooth Line"),
+    CANDLESTICK("Derived Candles"),
     PULSE_FLOW("Live Scrub")
 }
 
@@ -104,16 +95,6 @@ fun UpgradedStockDetailChart(
 
     val activeColor = if (isPositive) PurplePrimary else MarketRed
     val gradientColor = if (isPositive) PurpleSoftLavender else MarketRedBg
-
-    // Vico Model Producer
-    val modelProducer = remember { CartesianChartModelProducer() }
-    LaunchedEffect(historicalPoints) {
-        if (historicalPoints.size >= 2) {
-            modelProducer.runTransaction {
-                lineSeries { series(historicalPoints) }
-            }
-        }
-    }
 
     val displayPrice = selectedIndex?.let { historicalPoints.getOrNull(it) } ?: currentPrice
     val startPrice = historicalPoints.firstOrNull() ?: currentPrice
@@ -345,35 +326,15 @@ fun UpgradedStockDetailChart(
                 }
             }
 
-            // Mode 1: Native Vico Line Chart
+            // Mode 1: Smooth Compose line chart using recorded simulated samples.
             displayMode == ChartDisplayMode.VICO_LINE -> {
-                Box(
+                SmoothLineCanvas(
+                    historicalPoints = historicalPoints,
+                    isPositive = isPositive,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(220.dp)
-                ) {
-                    val vicoLine = remember {
-                        val strokeFill = LineCartesianLayer.LineFill.single(Fill(Color(0xFF7652E8).toArgb()))
-                        val areaFill = LineCartesianLayer.AreaFill.single(Fill(Color(0x2A7652E8).toArgb()))
-                        LineCartesianLayer.Line(fill = strokeFill, areaFill = areaFill)
-                    }
-
-                    val lineLayer = rememberLineCartesianLayer(
-                        lineProvider = remember(vicoLine) {
-                            LineCartesianLayer.LineProvider.series(vicoLine)
-                        }
-                    )
-
-                    CartesianChartHost(
-                        chart = rememberCartesianChart(
-                            lineLayer,
-                            startAxis = rememberStartAxis(),
-                            bottomAxis = rememberBottomAxis()
-                        ),
-                        modelProducer = modelProducer,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
+                )
             }
 
             // Mode 2: Japanese Candlestick Chart
@@ -399,6 +360,15 @@ fun UpgradedStockDetailChart(
                         .height(220.dp)
                 )
             }
+        }
+
+        if (displayMode == ChartDisplayMode.CANDLESTICK) {
+            Text(
+                text = "Derived from recorded simulated prices; exchange OHLC data is not available.",
+                fontSize = 10.sp,
+                color = TextTertiary,
+                modifier = Modifier.padding(top = 2.dp)
+            )
         }
 
         Spacer(modifier = Modifier.height(10.dp))
@@ -437,6 +407,59 @@ fun UpgradedStockDetailChart(
     }
 }
 
+
+@Composable
+private fun SmoothLineCanvas(
+    historicalPoints: List<Double>,
+    isPositive: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val lineColor = if (isPositive) PurplePrimary else MarketRed
+    val areaColor = if (isPositive) PurpleSoftLavender else MarketRedBg
+
+    Canvas(modifier = modifier) {
+        if (historicalPoints.size < 2) return@Canvas
+        val minValue = historicalPoints.minOrNull() ?: return@Canvas
+        val maxValue = historicalPoints.maxOrNull() ?: return@Canvas
+        val range = (maxValue - minValue).coerceAtLeast(0.01)
+        val inset = 12.dp.toPx()
+        val points = historicalPoints.mapIndexed { index, value ->
+            val x = index.toFloat() / (historicalPoints.size - 1) * size.width
+            val y = size.height - inset -
+                ((value - minValue) / range).toFloat() * (size.height - inset * 2)
+            Offset(x, y)
+        }
+        val linePath = Path().apply {
+            moveTo(points.first().x, points.first().y)
+            for (index in 0 until points.lastIndex) {
+                val a = points[index]
+                val b = points[index + 1]
+                val midX = (a.x + b.x) / 2f
+                cubicTo(midX, a.y, midX, b.y, b.x, b.y)
+            }
+        }
+        val areaPath = Path().apply {
+            addPath(linePath)
+            lineTo(size.width, size.height)
+            lineTo(0f, size.height)
+            close()
+        }
+        drawPath(
+            areaPath,
+            brush = Brush.verticalGradient(
+                colors = listOf(areaColor.copy(alpha = 0.45f), Color.Transparent),
+                startY = 0f,
+                endY = size.height
+            )
+        )
+        drawPath(
+            linePath,
+            color = lineColor,
+            style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+        )
+    }
+}
+
 @Composable
 private fun CandlestickCanvas(
     historicalPoints: List<Double>,
@@ -455,11 +478,13 @@ private fun CandlestickCanvas(
 
         for (i in 0 until candleCount) {
             val pClose = historicalPoints[i]
-            val pOpen = if (i > 0) historicalPoints[i - 1] else pClose * 0.998
+            // This view has close samples only; derive open from the prior recorded close
+            // and do not invent high/low wick values without OHLC source data.
+            val pOpen = if (i > 0) historicalPoints[i - 1] else pClose
             val isBullish = pClose >= pOpen
 
-            val highVal = maxOf(pOpen, pClose) * 1.002
-            val lowVal = minOf(pOpen, pClose) * 0.998
+            val highVal = maxOf(pOpen, pClose)
+            val lowVal = minOf(pOpen, pClose)
 
             val yOpen = height - ((pOpen - min) / range * height).toFloat()
             val yClose = height - ((pClose - min) / range * height).toFloat()

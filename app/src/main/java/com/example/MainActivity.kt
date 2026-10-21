@@ -2,6 +2,7 @@ package com.example
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
@@ -12,19 +13,26 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.data.model.MarketCategory
 import com.example.ui.AppDestination
@@ -36,22 +44,99 @@ import com.example.ui.components.TradeBottomSheet
 import com.example.ui.screens.AiTutorScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.InstrumentDetailScreen
+import com.example.ui.screens.EmailPasswordLoginScreen
 import com.example.ui.screens.LearnScreen
 import com.example.ui.screens.MarketsScreen
 import com.example.ui.screens.OnboardingScreen
 import com.example.ui.screens.PortfolioScreen
 import com.example.ui.screens.ProfileScreen
 import com.example.ui.theme.Stock1Theme
+import com.google.firebase.FirebaseApp
+import com.google.firebase.appcheck.FirebaseAppCheck
+import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.delay
+import android.os.SystemClock
+import android.widget.Toast
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Debug App Check tokens are for local testing only; register the token in Firebase Console.
+        // Production builds must use a production attestation provider, not the debug provider.
+        if (BuildConfig.DEBUG && FirebaseApp.initializeApp(this) != null) {
+            FirebaseAppCheck.getInstance()
+                .installAppCheckProviderFactory(DebugAppCheckProviderFactory.getInstance())
+        }
         enableEdgeToEdge()
         setContent {
             Stock1Theme {
-                Stock1App()
+                Stock1StartupGate()
             }
+        }
+    }
+}
+
+@Composable
+private fun Stock1StartupGate() {
+    var splashVisible by remember { mutableStateOf(true) }
+    LaunchedEffect(Unit) {
+        delay(1100)
+        splashVisible = false
+    }
+    if (splashVisible) {
+        Stock1SplashScreen()
+    } else {
+        Stock1App()
+    }
+}
+
+@Composable
+private fun Stock1SplashScreen() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                androidx.compose.ui.graphics.Brush.verticalGradient(
+                    listOf(Color(0xFFFAF9FD), Color(0xFFF0E9FF), Color.White)
+                )
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        androidx.compose.foundation.layout.Column(
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(88.dp)
+                    .background(Color(0xFF7852E8), androidx.compose.foundation.shape.RoundedCornerShape(28.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                androidx.compose.material3.Text(
+                    text = "S1",
+                    color = Color.White,
+                    fontSize = 34.sp,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold
+                )
+            }
+            androidx.compose.foundation.layout.Spacer(Modifier.padding(top = 20.dp))
+            androidx.compose.material3.Text(
+                text = "Stock1",
+                color = Color(0xFF211A32),
+                fontSize = 30.sp,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+            )
+            androidx.compose.material3.Text(
+                text = "Learn markets. Practice safely.",
+                color = Color(0xFF777181),
+                fontSize = 14.sp
+            )
+            androidx.compose.foundation.layout.Spacer(Modifier.padding(top = 24.dp))
+            androidx.compose.material3.CircularProgressIndicator(
+                modifier = Modifier.size(22.dp),
+                color = Color(0xFF7852E8),
+                strokeWidth = 2.dp
+            )
         }
     }
 }
@@ -85,6 +170,37 @@ fun Stock1App(viewModel: Stock1ViewModel = viewModel()) {
     val selectedSortOption by viewModel.selectedSortOption.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
+    // Demo authentication is intentionally local-only until production auth is enabled.
+    var isAuthenticated by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    var lastHomeBackPress by remember { mutableLongStateOf(0L) }
+
+    BackHandler(enabled = true) {
+        when {
+            tradeDialogState.isOpen -> viewModel.closeTradeSheet()
+            createAlertDialogState.isOpen -> viewModel.closeCreateAlertDialog()
+            isAlertsSheetOpen -> viewModel.closeAlertsSheet()
+            isOnboardingVisible -> { /* onboarding owns its completion flow */ }
+            !isAuthenticated -> { /* sign-in screen remains active */ }
+            isAiTutorOpen -> viewModel.closeAiTutor()
+            selectedInstrumentId != null -> viewModel.closeInstrumentDetail()
+            selectedLessonId != null -> viewModel.closeLesson()
+            currentDestination != AppDestination.HOME -> viewModel.navigateTo(AppDestination.HOME)
+            else -> {
+                val now = SystemClock.elapsedRealtime()
+                if (now - lastHomeBackPress < 2000L) {
+                    (context as? android.app.Activity)?.finish()
+                } else {
+                    lastHomeBackPress = now
+                    Toast.makeText(
+                        context,
+                        "Press Back again to exit Stock1",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.snackbarEvent.collectLatest { message ->
@@ -100,7 +216,8 @@ fun Stock1App(viewModel: Stock1ViewModel = viewModel()) {
         viewModel.repository.lessons.find { it.id == id }
     }
 
-    val isSubScreenOpen = isOnboardingVisible || isAiTutorOpen || selectedInstrumentId != null || selectedLessonId != null
+    val isLoginVisible = !isOnboardingVisible && !isAuthenticated
+    val isSubScreenOpen = isOnboardingVisible || isLoginVisible || isAiTutorOpen || selectedInstrumentId != null || selectedLessonId != null
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -128,6 +245,11 @@ fun Stock1App(viewModel: Stock1ViewModel = viewModel()) {
                     OnboardingScreen(
                         onCompleteOnboarding = { viewModel.completeOnboarding() }
                     )
+                }
+
+                // Email/password authentication follows onboarding
+                isLoginVisible -> {
+                    EmailPasswordLoginScreen(onAuthenticated = { isAuthenticated = true })
                 }
 
                 // AI Financial Tutor Screen
@@ -186,7 +308,11 @@ fun Stock1App(viewModel: Stock1ViewModel = viewModel()) {
                                     viewModel.selectedCategoryFilter.value = cat
                                 },
                                 onAiTutorClick = { viewModel.openAiTutor() },
-                                onOpenLesson = { lessonId -> viewModel.openLesson(lessonId) },
+                                onOpenLesson = { lessonId ->
+                                    val validId = viewModel.repository.lessons.firstOrNull { it.id == lessonId }?.id
+                                        ?: viewModel.repository.lessons.firstOrNull()?.id
+                                    if (validId != null) viewModel.openLesson(validId)
+                                },
                                 watchlistIds = watchlistIds,
                                 onToggleWatchlist = { id -> viewModel.toggleWatchlist(id) }
                             )

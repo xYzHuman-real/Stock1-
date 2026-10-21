@@ -138,6 +138,13 @@ fun HomeScreen(
                     style = MaterialTheme.typography.bodyMedium,
                     color = TextSecondary
                 )
+                Text(
+                    text = "DEMO DATA · Simulated prices only",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = PurplePrimary,
+                    modifier = Modifier.padding(top = 3.dp)
+                )
 
                 Spacer(modifier = Modifier.height(14.dp))
 
@@ -374,7 +381,7 @@ fun HomeScreen(
                                         color = TextPrimary
                                     )
                                     Text(
-                                        text = "Sample Historical Movement",
+                                        text = "DEMO DATA · Recorded simulated points",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = TextSecondary
                                     )
@@ -404,8 +411,7 @@ fun HomeScreen(
 
                             Spacer(modifier = Modifier.height(12.dp))
 
-                            val chartData = activeIndex.historicalData[selectedTimeRange.label]
-                                ?: activeIndex.sparkline
+                            val chartData = activeIndex.historicalData[selectedTimeRange.label].orEmpty()
 
                             InteractiveStockChart(
                                 historicalPoints = chartData,
