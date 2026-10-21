@@ -855,13 +855,13 @@ fun EmailPasswordLoginScreen(
     onAuthenticated: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var createAccount by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
-    val auth = remember { com.google.firebase.auth.FirebaseAuth.getInstance() }
+    var demoEmail by remember { mutableStateOf<String?>(null) }
+    var demoPassword by remember { mutableStateOf<String?>(null) }
 
     Box(
         modifier = modifier.fillMaxSize().background(
@@ -908,12 +908,19 @@ fun EmailPasswordLoginScreen(
                         error = "Password must be at least 6 characters."
                     } else {
                         busy = true
-                        val task = if (createAccount) auth.createUserWithEmailAndPassword(email, password)
-                                   else auth.signInWithEmailAndPassword(email, password)
-                        task.addOnCompleteListener { result ->
+                        // DEMO ONLY: credentials are held in memory and are not sent to a server or saved.
+                        if (createAccount) {
+                            demoEmail = email
+                            demoPassword = password
                             busy = false
-                            if (result.isSuccessful) onAuthenticated()
-                            else error = result.exception?.localizedMessage ?: "Authentication failed. Check Firebase Email/Password sign-in settings."
+                            createAccount = false
+                            error = "Demo account created on this device session. Sign in with the same details."
+                        } else if (email == demoEmail && password == demoPassword) {
+                            busy = false
+                            onAuthenticated()
+                        } else {
+                            busy = false
+                            error = "Demo sign-in failed. Create a demo account first, then use the same email and password."
                         }
                     }
                 },
@@ -927,7 +934,7 @@ fun EmailPasswordLoginScreen(
             TextButton(onClick = { createAccount = !createAccount; error = null }) {
                 Text(if (createAccount) "Already have an account? Sign in" else "New to Stock1? Create an account", color = PurpleDeep)
             }
-            Text("Email and password are handled by Firebase Authentication. Your password is not stored by Stock1.", fontSize = 11.sp, color = TextTertiary, textAlign = TextAlign.Center)
+            Text("DEMO AUTH ONLY · Credentials stay in temporary app memory and are lost when the app restarts. Do not use a real password.", fontSize = 11.sp, color = TextTertiary, textAlign = TextAlign.Center)
         }
     }
 }
