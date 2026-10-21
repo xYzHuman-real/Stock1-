@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Market Candlestick 1 -->
+    <path
+        android:fillColor="#A5B4FC"
+        android:pathData="M34,58h6v18h-6z" />
+    <path
+        android:fillColor="#A5B4FC"
+        android:pathData="M36.5,52h1v6h-1z M36.5,76h1v4h-1z" />
+
+    <!-- Market Candlestick 2 -->
+    <path
+        android:fillColor="#C7D2FE"
+        android:pathData="M44,48h6v28h-6z" />
+    <path
+        android:fillColor="#C7D2FE"
+        android:pathData="M46.5,42h1v6h-1z M46.5,76h1v4h-1z" />
+
+    <!-- Stock1 '1' Emblem with Upward Surge -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M56,38 L65.5,29 L69,29 L69,76 L63,76 L63,39 L57.5,44 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M55,73h20v4h-20z" />
+
+    <!-- Upward Trend Line & Arrowhead -->
+    <path
+        android:strokeColor="#34D399"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000"
+        android:pathData="M30,66 L42,56 L52,60 L75,34" />
+    <path
+        android:fillColor="#34D399"
+        android:pathData="M78,31 L69,32 L74,37 Z" />
+</vector>

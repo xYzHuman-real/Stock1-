@@ -1,0 +1,6 @@
+{
+  "name": "Stock1",
+  "description": "The All-in-One Financial Markets Learning App with real-time simulated trading, market exploration, interactive charts, and educational AI tutor.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
