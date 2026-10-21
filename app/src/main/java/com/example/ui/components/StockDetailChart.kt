@@ -77,6 +77,7 @@ import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStartAxis
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
+import com.patrykandpatrick.vico.core.cartesian.axis.CartesianValueFormatter
 import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
 import com.patrykandpatrick.vico.core.cartesian.layer.LineCartesianLayer
 import com.patrykandpatrick.vico.core.common.Fill
@@ -354,8 +355,14 @@ fun UpgradedStockDetailChart(
                 ) {
                     val vicoLine = remember {
                         val strokeFill = LineCartesianLayer.LineFill.single(Fill(Color(0xFF7652E8).toArgb()))
-                        val areaFill = LineCartesianLayer.AreaFill.single(Fill(Color(0x2A7652E8).toArgb()))
-                        LineCartesianLayer.Line(fill = strokeFill, areaFill = areaFill)
+                        val areaFill = LineCartesianLayer.AreaFill.single(
+                            Fill(Brush.verticalGradient(listOf(Color(0x337652E8), Color.Transparent)))
+                        )
+                        LineCartesianLayer.Line(
+                            fill = strokeFill,
+                            areaFill = areaFill,
+                            interpolator = LineCartesianLayer.Interpolator.catmullRom()
+                        )
                     }
 
                     val lineLayer = rememberLineCartesianLayer(
@@ -367,8 +374,17 @@ fun UpgradedStockDetailChart(
                     CartesianChartHost(
                         chart = rememberCartesianChart(
                             lineLayer,
-                            startAxis = rememberStartAxis(),
-                            bottomAxis = rememberBottomAxis()
+                            startAxis = rememberStartAxis(
+                                valueFormatter = CartesianValueFormatter { value, _, _ ->
+                                    "$currency${"%.2f".format(value)}"
+                                }
+                            ),
+                            // The data model contains ordered samples, not timestamps; label sample points honestly.
+                            bottomAxis = rememberBottomAxis(
+                                valueFormatter = CartesianValueFormatter { value, _, _ ->
+                                    "Pt ${value.toInt() + 1}"
+                                }
+                            )
                         ),
                         modelProducer = modelProducer,
                         modifier = Modifier.fillMaxSize()
