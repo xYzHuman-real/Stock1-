@@ -89,7 +89,7 @@ class GeminiTutorService {
             1. Clearly explain concepts in beginner-friendly, structured terms with bullet points and key takeaways.
             2. You MUST explicitly distinguish observations from predictions.
             3. Explicitly explain that simulated chart movements and demo prices in Stock1 are for safe educational practice only and are NOT evidence of actual market behaviour.
-            4. Never invent company facts, market news, financial statistics, or live prices. If reliable information is not available in the context or knowledge base, say so clearly.
+            4. Never invent company facts, market news, financial statistics, or live prices. Treat Stock1's built-in descriptions, ratios, and demo ranges as app-provided educational metadata, not independently verified facts. If reliable sourced information is unavailable, say so clearly.
             5. NEVER provide real-time investment advice, guarantee future returns, or encourage reckless trading. Always prioritize capital preservation, diversification, and disciplined risk management.
         """.trimIndent()
 
@@ -103,7 +103,7 @@ class GeminiTutorService {
                 "- [${it.category}] ${it.title} (Source: ${it.sourceName}, ${it.publishedTimeFormatted})"
             }
         } else {
-            "No specific breaking headlines attached for this instrument in the demo feed."
+            "No verified, instrument-specific news headlines are attached. Do not infer or invent news."
         }
 
         val chartStats = if (context.historicalPoints.isNotEmpty()) {
@@ -111,7 +111,7 @@ class GeminiTutorService {
             val max = context.historicalPoints.maxOrNull() ?: inst.currentPrice
             "Recorded ${context.historicalPoints.size} historical points for range ${context.selectedTimeRange.label}. Range Low: ${inst.currency}%,.2f, Range High: ${inst.currency}%,.2f.".format(min, max)
         } else {
-            "Only baseline sparkline available."
+            "No recorded historical points are available for this selected range."
         }
 
         return """
@@ -124,10 +124,10 @@ class GeminiTutorService {
             - Daily Movement: ${inst.currency}%,.2f (${inst.changePercent}%)
             - Day Range: ${inst.currency}%,.2f to ${inst.currency}%,.2f
             - 52-Week Range: ${inst.currency}%,.2f to ${inst.currency}%,.2f
-            - P/E Ratio: ${inst.peRatio ?: "N/A"}, Dividend Yield: ${inst.dividendYield?.let { "$it%" } ?: "N/A"}, Beta: ${inst.beta}
+            - App-provided sample metrics (not independently verified): P/E ${inst.peRatio ?: "N/A"}, Dividend Yield ${inst.dividendYield?.let { "$it%" } ?: "N/A"}, Beta ${inst.beta}
             - Risk Profile: ${inst.riskProfile}
-            - Company / Asset Overview: ${inst.description}
-            - Why it matters to investors: ${inst.whyItMatters}
+            - App-provided educational description (not independently verified): ${inst.description}
+            - App-provided educational context (not independently verified): ${inst.whyItMatters}
             - Active Chart Range: ${context.selectedTimeRange.label} ($chartStats)
             - Relevant News Feed:
             $newsSummary
@@ -160,7 +160,7 @@ class GeminiTutorService {
                     🏢 **Overview of ${inst.name} (${inst.symbol})**
                     
                     • **Category:** ${inst.category.displayName} on ${inst.exchange}
-                    • **About:** ${inst.description}
+                    • **About (Stock1 educational catalog; not independently verified):** ${inst.description}
                     • **Why It Matters:** ${inst.whyItMatters}
                     • **Risk Profile:** **${inst.riskProfile}** (Beta: ${inst.beta})
                     
@@ -299,6 +299,7 @@ class GeminiTutorService {
                         News headlines often trigger short-term sentiment shifts among market participants. As a beginner, learn to distinguish between transient market noise and fundamental long-term corporate performance.
                     """.trimIndent()
                 }
+                return "No verified, instrument-specific news is available in the current Stock1 context. I won't invent headlines or claim that a demo price movement was caused by news."
             }
         }
 
