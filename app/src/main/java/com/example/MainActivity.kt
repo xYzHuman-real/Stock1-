@@ -29,6 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.data.model.MarketCategory
 import com.example.ui.AppDestination
@@ -100,6 +101,7 @@ fun Stock1App(viewModel: Stock1ViewModel = viewModel()) {
     val selectedSortOption by viewModel.selectedSortOption.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
     var lastHomeBackPress by remember { mutableLongStateOf(0L) }
 
     BackHandler(enabled = true) {
@@ -115,11 +117,11 @@ fun Stock1App(viewModel: Stock1ViewModel = viewModel()) {
             else -> {
                 val now = SystemClock.elapsedRealtime()
                 if (now - lastHomeBackPress < 2000L) {
-                    (androidx.compose.ui.platform.LocalContext.current as? android.app.Activity)?.finish()
+                    (context as? android.app.Activity)?.finish()
                 } else {
                     lastHomeBackPress = now
                     Toast.makeText(
-                        androidx.compose.ui.platform.LocalContext.current,
+                        context,
                         "Press Back again to exit Stock1",
                         Toast.LENGTH_SHORT
                     ).show()
