@@ -23,6 +23,9 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -31,6 +34,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.data.model.MarketCategory
 import com.example.ui.AppDestination
@@ -53,6 +58,7 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.appcheck.FirebaseAppCheck
 import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.delay
 import android.os.SystemClock
 import android.widget.Toast
 
@@ -68,8 +74,72 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             Stock1Theme {
-                Stock1App()
+                Stock1StartupGate()
             }
+        }
+    }
+}
+
+@Composable
+private fun Stock1StartupGate() {
+    var splashVisible by remember { mutableStateOf(true) }
+    LaunchedEffect(Unit) {
+        delay(1100)
+        splashVisible = false
+    }
+    if (splashVisible) {
+        Stock1SplashScreen()
+    } else {
+        Stock1App()
+    }
+}
+
+@Composable
+private fun Stock1SplashScreen() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                androidx.compose.ui.graphics.Brush.verticalGradient(
+                    listOf(Color(0xFFFAF9FD), Color(0xFFF0E9FF), Color.White)
+                )
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        androidx.compose.foundation.layout.Column(
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(88.dp)
+                    .background(Color(0xFF7852E8), androidx.compose.foundation.shape.RoundedCornerShape(28.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                androidx.compose.material3.Text(
+                    text = "S1",
+                    color = Color.White,
+                    fontSize = 34.sp,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold
+                )
+            }
+            androidx.compose.foundation.layout.Spacer(Modifier.padding(top = 20.dp))
+            androidx.compose.material3.Text(
+                text = "Stock1",
+                color = Color(0xFF211A32),
+                fontSize = 30.sp,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+            )
+            androidx.compose.material3.Text(
+                text = "Learn markets. Practice safely.",
+                color = Color(0xFF777181),
+                fontSize = 14.sp
+            )
+            androidx.compose.foundation.layout.Spacer(Modifier.padding(top = 24.dp))
+            androidx.compose.material3.CircularProgressIndicator(
+                modifier = Modifier.size(22.dp),
+                color = Color(0xFF7852E8),
+                strokeWidth = 2.dp
+            )
         }
     }
 }
