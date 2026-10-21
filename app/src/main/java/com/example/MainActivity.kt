@@ -26,6 +26,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -41,6 +43,7 @@ import com.example.ui.components.TradeBottomSheet
 import com.example.ui.screens.AiTutorScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.InstrumentDetailScreen
+import com.example.ui.screens.EmailPasswordLoginScreen
 import com.example.ui.screens.LearnScreen
 import com.example.ui.screens.MarketsScreen
 import com.example.ui.screens.OnboardingScreen
@@ -101,6 +104,13 @@ fun Stock1App(viewModel: Stock1ViewModel = viewModel()) {
     val selectedSortOption by viewModel.selectedSortOption.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
+    val firebaseAuth = remember { com.google.firebase.auth.FirebaseAuth.getInstance() }
+    var isAuthenticated by remember { mutableStateOf(firebaseAuth.currentUser != null) }
+    DisposableEffect(firebaseAuth) {
+        val listener = com.google.firebase.auth.FirebaseAuth.AuthStateListener { auth -> isAuthenticated = auth.currentUser != null }
+        firebaseAuth.addAuthStateListener(listener)
+        onDispose { firebaseAuth.removeAuthStateListener(listener) }
+    }
     val context = LocalContext.current
     var lastHomeBackPress by remember { mutableLongStateOf(0L) }
 
@@ -110,6 +120,7 @@ fun Stock1App(viewModel: Stock1ViewModel = viewModel()) {
             createAlertDialogState.isOpen -> viewModel.closeCreateAlertDialog()
             isAlertsSheetOpen -> viewModel.closeAlertsSheet()
             isOnboardingVisible -> { /* onboarding owns its completion flow */ }
+            !isAuthenticated -> { /* sign-in screen remains active */ }
             isAiTutorOpen -> viewModel.closeAiTutor()
             selectedInstrumentId != null -> viewModel.closeInstrumentDetail()
             selectedLessonId != null -> viewModel.closeLesson()
@@ -144,7 +155,8 @@ fun Stock1App(viewModel: Stock1ViewModel = viewModel()) {
         viewModel.repository.lessons.find { it.id == id }
     }
 
-    val isSubScreenOpen = isOnboardingVisible || isAiTutorOpen || selectedInstrumentId != null || selectedLessonId != null
+    val isLoginVisible = !isOnboardingVisible && !isAuthenticated
+    val isSubScreenOpen = isOnboardingVisible || isLoginVisible || isAiTutorOpen || selectedInstrumentId != null || selectedLessonId != null
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -172,6 +184,11 @@ fun Stock1App(viewModel: Stock1ViewModel = viewModel()) {
                     OnboardingScreen(
                         onCompleteOnboarding = { viewModel.completeOnboarding() }
                     )
+                }
+
+                // Email/password authentication follows onboarding
+                isLoginVisible -> {
+                    EmailPasswordLoginScreen(onAuthenticated = { isAuthenticated = true })
                 }
 
                 // AI Financial Tutor Screen
