@@ -20,7 +20,7 @@ import java.util.UUID
 class GeminiTutorService {
 
     private val model by lazy {
-        FirebaseAI.getInstance(GenerativeBackend.googleAI())
+        FirebaseAI.getInstance(FirebaseApp.getInstance(), GenerativeBackend.googleAI())
             .generativeModel("gemini-3.5-flash")
     }
 
