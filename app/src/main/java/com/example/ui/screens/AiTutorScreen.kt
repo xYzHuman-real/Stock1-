@@ -331,6 +331,15 @@ fun AiTutorScreen(
                             .padding(14.dp)
                     ) {
                         Column {
+                            if (!isUser && msg.isEducationalFallback) {
+                                Text(
+                                    text = "EDUCATIONAL FALLBACK · GEMINI UNAVAILABLE",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF8A6D1D)
+                                )
+                                Spacer(modifier = Modifier.height(5.dp))
+                            }
                             Text(
                                 text = msg.text,
                                 fontSize = 14.sp,
