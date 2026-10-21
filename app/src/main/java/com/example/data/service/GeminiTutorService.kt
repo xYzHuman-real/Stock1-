@@ -1,121 +1,84 @@
 package com.example.data.service
 
-import com.example.BuildConfig
+import com.google.firebase.FirebaseApp
+import com.google.firebase.ai.FirebaseAI
+import com.google.firebase.ai.type.GenerativeBackend
 import com.example.data.SampleDataProvider
 import com.example.data.model.ChatMessage
 import com.example.data.model.ChatSender
 import com.example.data.model.InstrumentTutorContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONArray
-import org.json.JSONObject
 import java.util.Locale
 import java.util.UUID
-import java.util.concurrent.TimeUnit
 
+/**
+ * Uses Firebase AI Logic so a Gemini Developer API key is not embedded in the Android APK.
+ * Firebase AI Logic, Firebase project configuration, and App Check must be configured
+ * in the Firebase console for cloud responses to work.
+ */
 class GeminiTutorService {
 
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(20, TimeUnit.SECONDS)
-        .writeTimeout(15, TimeUnit.SECONDS)
-        .build()
+    private val model by lazy {
+        FirebaseAI.getInstance(GenerativeBackend.googleAI())
+            .generativeModel("gemini-3.5-flash")
+    }
 
     suspend fun generateTutorResponse(
         userQuery: String,
-        context: InstrumentTutorContext?
+        context: InstrumentTutorContext?,
+        conversationHistory: List<ChatMessage> = emptyList()
     ): ChatMessage = withContext(Dispatchers.IO) {
-        val apiKey = getApiKey()
-        if (apiKey.isNotBlank()) {
-            try {
-                val apiResponse = callGeminiApi(apiKey, userQuery, context)
-                if (apiResponse != null && apiResponse.isNotBlank()) {
-                    return@withContext ChatMessage(
-                        id = UUID.randomUUID().toString(),
-                        sender = ChatSender.TUTOR,
-                        text = apiResponse,
-                        timestamp = System.currentTimeMillis(),
-                        isEducationalFallback = false
-                    )
-                }
-            } catch (e: Exception) {
-                // Graceful fallback to context-aware educational reasoning
+        val conversation = conversationHistory.takeLast(10).joinToString("\n") { message ->
+            val role = if (message.sender == ChatSender.USER) "Learner" else "Tutor"
+            "$role: ${message.text}"
+        }
+        val prompt = buildString {
+            append(buildSystemPrompt(context))
+            if (conversation.isNotBlank()) {
+                append("\n\nRECENT CONVERSATION (for continuity only):\n")
+                append(conversation)
             }
+            append("\n\nCURRENT LEARNER QUESTION:\n")
+            append(userQuery)
+            append("\n\nAnswer as an educational tutor. Separate facts from observations and predictions. ")
+            append("Never present Stock1 demo prices or simulated movements as real market data.")
         }
 
-        // Context-aware educational engine (used offline or when API key is not configured)
-        val fallbackText = generateContextualFallback(userQuery, context)
-        ChatMessage(
-            id = UUID.randomUUID().toString(),
-            sender = ChatSender.TUTOR,
-            text = fallbackText,
-            timestamp = System.currentTimeMillis(),
-            isEducationalFallback = true
-        )
+        val apiResponse = if (isGeminiConfigured()) {
+            try {
+                model.generateContent(prompt).text
+            } catch (_: Exception) {
+                null
+            }
+        } else {
+            null
+        }
+
+        if (!apiResponse.isNullOrBlank()) {
+            ChatMessage(
+                id = UUID.randomUUID().toString(),
+                sender = ChatSender.TUTOR,
+                text = apiResponse.trim(),
+                timestamp = System.currentTimeMillis(),
+                isEducationalFallback = false
+            )
+        } else {
+            // Keep the existing educational fallback available when Firebase or Gemini is not configured.
+            ChatMessage(
+                id = UUID.randomUUID().toString(),
+                sender = ChatSender.TUTOR,
+                text = generateContextualFallback(userQuery, context),
+                timestamp = System.currentTimeMillis(),
+                isEducationalFallback = true
+            )
+        }
     }
 
-    fun isGeminiConfigured(): Boolean = getApiKey().isNotBlank()
-
-    private fun getApiKey(): String {
-        return try {
-            val keyField = BuildConfig::class.java.getField("GEMINI_API_KEY")
-            val key = keyField.get(null) as? String ?: ""
-            if (key == "MY_GEMINI_API_KEY" || key.isBlank()) "" else key
-        } catch (_: Exception) {
-            ""
-        }
-    }
-
-    private fun callGeminiApi(
-        apiKey: String,
-        userQuery: String,
-        context: InstrumentTutorContext?
-    ): String? {
-        val systemInstruction = buildSystemPrompt(context)
-
-        val contentsArray = JSONArray().apply {
-            put(JSONObject().apply {
-                put("role", "user")
-                put("parts", JSONArray().apply {
-                    put(JSONObject().put("text", "$systemInstruction\n\nUser Question: $userQuery"))
-                })
-            })
-        }
-
-        val requestBodyJson = JSONObject().apply {
-            put("contents", contentsArray)
-            put("generationConfig", JSONObject().apply {
-                put("temperature", 0.4)
-                put("maxOutputTokens", 800)
-            })
-        }
-
-        val mediaType = "application/json; charset=utf-8".toMediaType()
-        val body = requestBodyJson.toString().toRequestBody(mediaType)
-
-        // Try gemini-1.5-flash
-        val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$apiKey"
-        val request = Request.Builder()
-            .url(url)
-            .post(body)
-            .build()
-
-        client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) return null
-            val responseBody = response.body?.string() ?: return null
-            val json = JSONObject(responseBody)
-            val candidates = json.optJSONArray("candidates") ?: return null
-            if (candidates.length() == 0) return null
-            val firstCandidate = candidates.getJSONObject(0)
-            val content = firstCandidate.optJSONObject("content") ?: return null
-            val parts = content.optJSONArray("parts") ?: return null
-            if (parts.length() == 0) return null
-            return parts.getJSONObject(0).optString("text")
-        }
+    fun isGeminiConfigured(): Boolean = try {
+        FirebaseApp.getInstance().options.apiKey?.isNotBlank() == true
+    } catch (_: Exception) {
+        false
     }
 
     private fun buildSystemPrompt(context: InstrumentTutorContext?): String {
