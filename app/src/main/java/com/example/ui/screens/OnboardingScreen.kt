@@ -55,6 +55,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -844,6 +845,89 @@ private fun Screen3VisualCard() {
                     )
                 }
             }
+        }
+    }
+}
+
+
+@Composable
+fun EmailPasswordLoginScreen(
+    onAuthenticated: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var createAccount by remember { mutableStateOf(false) }
+    var busy by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val auth = remember { com.google.firebase.auth.FirebaseAuth.getInstance() }
+
+    Box(
+        modifier = modifier.fillMaxSize().background(
+            Brush.verticalGradient(listOf(Color.White, Color(0xFFFAF8FF), Color(0xFFF4F0FE))
+        )).statusBarsPadding().navigationBarsPadding(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("Stock1", fontSize = 36.sp, fontWeight = FontWeight.Black, color = TextPrimary)
+            Spacer(Modifier.height(8.dp))
+            Text(if (createAccount) "Create your learning account" else "Welcome back", fontSize = 23.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+            Spacer(Modifier.height(8.dp))
+            Text("Learn markets safely with simulated money.", fontSize = 14.sp, color = TextSecondary, textAlign = TextAlign.Center)
+            Spacer(Modifier.height(28.dp))
+            androidx.compose.material3.OutlinedTextField(
+                value = email, onValueChange = { email = it.trim(); error = null },
+                modifier = Modifier.fillMaxWidth(), singleLine = true,
+                label = { Text("Email address") },
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Email),
+                shape = RoundedCornerShape(16.dp)
+            )
+            Spacer(Modifier.height(12.dp))
+            androidx.compose.material3.OutlinedTextField(
+                value = password, onValueChange = { password = it; error = null },
+                modifier = Modifier.fillMaxWidth(), singleLine = true,
+                label = { Text("Password") },
+                visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Password),
+                shape = RoundedCornerShape(16.dp)
+            )
+            if (error != null) {
+                Spacer(Modifier.height(10.dp))
+                Text(error!!, color = Color(0xFFB3261E), fontSize = 13.sp)
+            }
+            Spacer(Modifier.height(18.dp))
+            Button(
+                onClick = {
+                    if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                        error = "Enter a valid email address."
+                    } else if (password.length < 6) {
+                        error = "Password must be at least 6 characters."
+                    } else {
+                        busy = true
+                        val task = if (createAccount) auth.createUserWithEmailAndPassword(email, password)
+                                   else auth.signInWithEmailAndPassword(email, password)
+                        task.addOnCompleteListener { result ->
+                            busy = false
+                            if (result.isSuccessful) onAuthenticated()
+                            else error = result.exception?.localizedMessage ?: "Authentication failed. Check Firebase Email/Password sign-in settings."
+                        }
+                    }
+                },
+                enabled = !busy,
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary)
+            ) {
+                Text(if (busy) "Please wait…" else if (createAccount) "Create account" else "Sign in", fontWeight = FontWeight.Bold)
+            }
+            TextButton(onClick = { createAccount = !createAccount; error = null }) {
+                Text(if (createAccount) "Already have an account? Sign in" else "New to Stock1? Create an account", color = PurpleDeep)
+            }
+            Text("Email and password are handled by Firebase Authentication. Your password is not stored by Stock1.", fontSize = 11.sp, color = TextTertiary, textAlign = TextAlign.Center)
         }
     }
 }
