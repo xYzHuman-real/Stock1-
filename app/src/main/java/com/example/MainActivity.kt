@@ -42,11 +42,20 @@ import com.example.ui.screens.OnboardingScreen
 import com.example.ui.screens.PortfolioScreen
 import com.example.ui.screens.ProfileScreen
 import com.example.ui.theme.Stock1Theme
+import com.google.firebase.FirebaseApp
+import com.google.firebase.appcheck.FirebaseAppCheck
+import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
 import kotlinx.coroutines.flow.collectLatest
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Debug App Check tokens are for local testing only; register the token in Firebase Console.
+        // Production builds must use a production attestation provider, not the debug provider.
+        if (BuildConfig.DEBUG && FirebaseApp.initializeApp(this) != null) {
+            FirebaseAppCheck.getInstance()
+                .installAppCheckProviderFactory(DebugAppCheckProviderFactory.getInstance())
+        }
         enableEdgeToEdge()
         setContent {
             Stock1Theme {
