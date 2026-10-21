@@ -27,7 +27,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -104,13 +103,8 @@ fun Stock1App(viewModel: Stock1ViewModel = viewModel()) {
     val selectedSortOption by viewModel.selectedSortOption.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
-    val firebaseAuth = remember { com.google.firebase.auth.FirebaseAuth.getInstance() }
-    var isAuthenticated by remember { mutableStateOf(firebaseAuth.currentUser != null) }
-    DisposableEffect(firebaseAuth) {
-        val listener = com.google.firebase.auth.FirebaseAuth.AuthStateListener { auth -> isAuthenticated = auth.currentUser != null }
-        firebaseAuth.addAuthStateListener(listener)
-        onDispose { firebaseAuth.removeAuthStateListener(listener) }
-    }
+    // Demo authentication is intentionally local-only until production auth is enabled.
+    var isAuthenticated by remember { mutableStateOf(false) }
     val context = LocalContext.current
     var lastHomeBackPress by remember { mutableLongStateOf(0L) }
 
