@@ -83,7 +83,7 @@ import com.patrykandpatrick.vico.core.common.Fill
 
 enum class ChartDisplayMode(val label: String) {
     VICO_LINE("Vico Line"),
-    CANDLESTICK("Candles"),
+    CANDLESTICK("Derived Candles"),
     PULSE_FLOW("Live Scrub")
 }
 
@@ -401,6 +401,15 @@ fun UpgradedStockDetailChart(
             }
         }
 
+        if (displayMode == ChartDisplayMode.CANDLESTICK) {
+            Text(
+                text = "Derived from recorded simulated prices; exchange OHLC data is not available.",
+                fontSize = 10.sp,
+                color = TextTertiary,
+                modifier = Modifier.padding(top = 2.dp)
+            )
+        }
+
         Spacer(modifier = Modifier.height(10.dp))
 
         // Range Stats & Labels Footer
@@ -455,11 +464,13 @@ private fun CandlestickCanvas(
 
         for (i in 0 until candleCount) {
             val pClose = historicalPoints[i]
-            val pOpen = if (i > 0) historicalPoints[i - 1] else pClose * 0.998
+            // This view has close samples only; derive open from the prior recorded close
+            // and do not invent high/low wick values without OHLC source data.
+            val pOpen = if (i > 0) historicalPoints[i - 1] else pClose
             val isBullish = pClose >= pOpen
 
-            val highVal = maxOf(pOpen, pClose) * 1.002
-            val lowVal = minOf(pOpen, pClose) * 0.998
+            val highVal = maxOf(pOpen, pClose)
+            val lowVal = minOf(pOpen, pClose)
 
             val yOpen = height - ((pOpen - min) / range * height).toFloat()
             val yClose = height - ((pClose - min) / range * height).toFloat()
