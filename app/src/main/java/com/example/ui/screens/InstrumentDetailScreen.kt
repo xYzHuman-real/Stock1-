@@ -256,8 +256,7 @@ fun InstrumentDetailScreen(
                         backgroundColor = Color.White
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
-                            val chartData = instrument.historicalData[selectedTimeRange.label]
-                                ?: instrument.sparkline
+                            val chartData = instrument.historicalData[selectedTimeRange.label].orEmpty()
 
                             UpgradedStockDetailChart(
                                 historicalPoints = chartData,
