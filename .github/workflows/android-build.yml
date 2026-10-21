@@ -27,8 +27,9 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
-        with:
-          packages: "platform-tools,platforms;android-36-ext1,build-tools;36.0.0"
+
+      - name: Install required Android SDK packages
+        run: sdkmanager "platform-tools" "platforms;android-36-ext1" "build-tools;36.0.0"
 
       # The repository currently has no Gradle wrapper scripts/JAR.
       # Install Gradle on the runner so CI can still validate the project.
